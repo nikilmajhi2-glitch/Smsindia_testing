@@ -1,5 +1,11 @@
 package com.smsindia.app.ui;
 
+import android.Manifest;
+import android.app.PendingIntent;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -11,48 +17,171 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.cardview.widget.CardView;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
-import androidx.work.Data;
-import androidx.work.OneTimeWorkRequest;
 import androidx.work.WorkManager;
+import androidx.work.WorkInfo;
 
 import com.smsindia.app.R;
 
 public class TaskFragment extends Fragment {
-    Button btnStartSim1, btnStartSim2;
-    ProgressBar progressSim1, progressSim2;
-    TextView limitSim1, limitSim2;
+
+    private static final int SMS_PERMISSION_CODE = 1001;
+
+    private Button startBtn, stopBtn, viewLogsBtn;
+    private TextView statusMessage, failHint;
+    private ProgressBar sendingProgress;
+    private CardView statusCard;
+
+    private WorkManager workManager;
 
     @Nullable
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+    public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container,
+                             Bundle savedInstanceState) {
         View v = inflater.inflate(R.layout.fragment_task, container, false);
 
-        btnStartSim1 = v.findViewById(R.id.btn_start_sim1);
-        btnStartSim2 = v.findViewById(R.id.btn_start_sim2);
-        progressSim1 = v.findViewById(R.id.progress_sim1);
-        progressSim2 = v.findViewById(R.id.progress_sim2);
-        limitSim1 = v.findViewById(R.id.limit_sim1);
-        limitSim2 = v.findViewById(R.id.limit_sim2);
+        statusCard = v.findViewById(R.id.status_card);
+        statusMessage = v.findViewById(R.id.status_message);
+        failHint = v.findViewById(R.id.fail_hint);
+        sendingProgress = v.findViewById(R.id.sending_progress);
 
-        btnStartSim1.setOnClickListener(view -> startSmsWorker(0));
-        btnStartSim2.setOnClickListener(view -> startSmsWorker(1));
+        startBtn = v.findViewById(R.id.btn_start_sending);
+        stopBtn = v.findViewById(R.id.btn_stop_sending);
+        viewLogsBtn = v.findViewById(R.id.btn_view_logs);
 
-        progressSim1.setProgress(0);
-        progressSim2.setProgress(0);
+        workManager = WorkManager.getInstance(requireContext());
 
-        limitSim1.setText("Limit / Send : 100 / 0");
-        limitSim2.setText("Limit / Send : 100 / 0");
+        checkAndRequestSmsPermissions();
+
+        startBtn.setOnClickListener(view -> startSmsSending());
+        stopBtn.setOnClickListener(view -> stopSmsSending());
+        viewLogsBtn.setOnClickListener(v1 -> startActivity(new Intent(requireContext(), DeliveryLogActivity.class)));
+
+        stopBtn.setEnabled(false);
+        showReadyUI();
+
+        observeWorkerStatus();
 
         return v;
     }
 
-    private void startSmsWorker(int simSlot) {
-        Data inputData = new Data.Builder().putInt("simSlot", simSlot).build();
-        OneTimeWorkRequest work = new OneTimeWorkRequest.Builder(com.smsindia.app.workers.SmsWorker.class)
-                .setInputData(inputData).build();
-        WorkManager.getInstance(requireContext()).enqueue(work);
+    private void startSmsSending() {
+        if (!hasSmsPermissions()) {
+            statusMessage.setText("SMS permission missing. Please grant and retry.");
+            statusCard.setCardBackgroundColor(Color.parseColor("#FFCDD2"));
+            Toast.makeText(getContext(), "Please grant SMS permission", Toast.LENGTH_LONG).show();
+            return;
+        }
 
-        Toast.makeText(getContext(), "Started task for SIM " + (simSlot + 1), Toast.LENGTH_SHORT).show();
+        // Enqueue the existing SmsWorker via WorkManager
+        SmsWorkerHelper.enqueueWork(workManager);
+
+        statusMessage.setText("Started sending SMS tasks...");
+        statusCard.setCardBackgroundColor(Color.parseColor("#FFFDE7"));
+        sendingProgress.setVisibility(View.VISIBLE);
+        failHint.setVisibility(View.GONE);
+
+        startBtn.setEnabled(false);
+        stopBtn.setEnabled(true);
+    }
+
+    private void stopSmsSending() {
+        SmsWorkerHelper.cancelWork(workManager);
+        statusMessage.setText("Sending stopped.");
+        statusCard.setCardBackgroundColor(Color.parseColor("#FFECB3"));
+        sendingProgress.setVisibility(View.GONE);
+        failHint.setVisibility(View.GONE);
+
+        startBtn.setEnabled(true);
+        stopBtn.setEnabled(false);
+    }
+
+    private void showReadyUI() {
+        statusMessage.setText("Ready to send SMS");
+        statusCard.setCardBackgroundColor(Color.parseColor("#FFFFFF"));
+        sendingProgress.setVisibility(View.GONE);
+        failHint.setVisibility(View.GONE);
+        startBtn.setEnabled(true);
+        stopBtn.setEnabled(false);
+    }
+
+    private boolean hasSmsPermissions() {
+        return ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.SEND_SMS)
+                == PackageManager.PERMISSION_GRANTED;
+    }
+
+    private void checkAndRequestSmsPermissions() {
+        if (!hasSmsPermissions()) {
+            ActivityCompat.requestPermissions(requireActivity(),
+                    new String[]{
+                            Manifest.permission.SEND_SMS,
+                            Manifest.permission.READ_SMS,
+                            Manifest.permission.RECEIVE_SMS,
+                            Manifest.permission.POST_NOTIFICATIONS
+                    },
+                    SMS_PERMISSION_CODE);
+        }
+    }
+
+    private void observeWorkerStatus() {
+        workManager.getWorkInfosByTagLiveData(SmsWorkerHelper.WORK_TAG)
+                .observe(getViewLifecycleOwner(), workInfos -> {
+                    if (workInfos == null || workInfos.isEmpty()) {
+                        showReadyUI();
+                        return;
+                    }
+                    WorkInfo workInfo = workInfos.get(0);
+                    switch (workInfo.getState()) {
+                        case RUNNING:
+                            int sent = workInfo.getProgress().getInt("sent", 0);
+                            int total = workInfo.getProgress().getInt("total", 0);
+                            statusMessage.setText("Sending SMS: " + sent + "/" + total);
+                            sendingProgress.setVisibility(View.VISIBLE);
+                            startBtn.setEnabled(false);
+                            stopBtn.setEnabled(true);
+                            break;
+                        case SUCCEEDED:
+                            statusMessage.setText("All SMS tasks sent successfully.");
+                            statusCard.setCardBackgroundColor(Color.parseColor("#C8E6C9"));
+                            sendingProgress.setVisibility(View.GONE);
+                            startBtn.setEnabled(true);
+                            stopBtn.setEnabled(false);
+                            break;
+                        case FAILED:
+                            statusMessage.setText("Failed to send SMS tasks.");
+                            statusCard.setCardBackgroundColor(Color.parseColor("#FFCDD2"));
+                            sendingProgress.setVisibility(View.GONE);
+                            startBtn.setEnabled(true);
+                            stopBtn.setEnabled(false);
+                            break;
+                        case CANCELLED:
+                            statusMessage.setText("Sending cancelled.");
+                            statusCard.setCardBackgroundColor(Color.parseColor("#FFECB3"));
+                            sendingProgress.setVisibility(View.GONE);
+                            startBtn.setEnabled(true);
+                            stopBtn.setEnabled(false);
+                            break;
+                        default:
+                            break;
+                    }
+                });
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == SMS_PERMISSION_CODE) {
+            boolean granted = true;
+            for (int res : grantResults)
+                if (res != PackageManager.PERMISSION_GRANTED) granted = false;
+            Toast.makeText(getContext(),
+                    granted ? "Permissions OK" : "Allow all permissions",
+                    Toast.LENGTH_LONG).show();
+        }
     }
 }
