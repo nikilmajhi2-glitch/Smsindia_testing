@@ -3,9 +3,7 @@ package com.smsindia.app.receivers;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Handler;
 import android.widget.Toast;
-import com.smsindia.app.ui.TaskFragment;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FieldValue;
 import java.util.HashMap;
@@ -17,7 +15,7 @@ public class SmsDeliveryReceiver extends BroadcastReceiver {
     @Override
     public void onReceive(Context context, Intent intent) {
         int partIndex = intent.getIntExtra("partIndex", 0);
-        if (partIndex != 0) return; // Credit/delete/log only once, on first part
+        if (partIndex != 0) return; // Only handle once for multipart
 
         String userId = intent.getStringExtra("userId");
         String docId = intent.getStringExtra("docId");
@@ -40,13 +38,6 @@ public class SmsDeliveryReceiver extends BroadcastReceiver {
                 if (docId != null) {
                     db.collection("sms_tasks").document(docId).delete();
                 }
-
-                if (context instanceof android.app.Activity) {
-                    Handler handler = new Handler(context.getMainLooper());
-                    handler.post(() -> {
-                        TaskFragment.showSuccessUI(((android.app.Activity) context).findViewById(android.R.id.content), phone);
-                    });
-                }
                 break;
 
             default:
@@ -54,13 +45,6 @@ public class SmsDeliveryReceiver extends BroadcastReceiver {
                 Toast.makeText(context, "SMS Failed to " + phone, Toast.LENGTH_SHORT).show();
                 if (docId != null) {
                     db.collection("sms_tasks").document(docId).delete();
-                }
-                if (context instanceof android.app.Activity) {
-                    Handler handler = new Handler(context.getMainLooper());
-                    handler.post(() -> {
-                        TaskFragment.showFailUI(((android.app.Activity) context).findViewById(android.R.id.content),
-                                phone, failCount >= 2);
-                    });
                 }
                 break;
         }
