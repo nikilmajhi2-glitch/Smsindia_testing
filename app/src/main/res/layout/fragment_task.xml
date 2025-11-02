@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FAFAFA">
+    <LinearLayout
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp">
+
+        <!-- SIM 1 CARD -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="20dp"
+            app:cardCornerRadius="14dp"
+            app:cardElevation="6dp">
+            <LinearLayout
+                android:orientation="vertical"
+                android:padding="22dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+                <TextView
+                    android:text="Sim 1 - JIO 4G — Jio"
+                    android:textStyle="bold"
+                    android:textSize="18sp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"/>
+                <TextView
+                    android:id="@+id/limit_sim1"
+                    android:text="Limit / Send : 100 / 0"
+                    android:textSize="16sp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"/>
+                <Button
+                    android:id="@+id/btn_start_sim1"
+                    android:layout_width="match_parent"
+                    android:layout_height="44dp"
+                    android:text="Start Task"
+                    android:backgroundTint="#FD6C2E"
+                    android:textColor="#FFF" />
+                <ProgressBar
+                    android:id="@+id/progress_sim1"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:progressTint="#4CAF50"
+                    android:layout_width="match_parent"
+                    android:layout_height="8dp"
+                    android:layout_marginTop="12dp"
+                    android:max="100"/>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- SIM 2 CARD -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardCornerRadius="14dp"
+            app:cardElevation="6dp">
+            <LinearLayout
+                android:orientation="vertical"
+                android:padding="22dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+                <TextView
+                    android:text="Sim 2 - airtel"
+                    android:textStyle="bold"
+                    android:textSize="18sp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"/>
+                <TextView
+                    android:id="@+id/limit_sim2"
+                    android:text="Limit / Send : 100 / 0"
+                    android:textSize="16sp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"/>
+                <Button
+                    android:id="@+id/btn_start_sim2"
+                    android:layout_width="match_parent"
+                    android:layout_height="44dp"
+                    android:text="Start Task"
+                    android:backgroundTint="#FD6C2E"
+                    android:textColor="#FFF" />
+                <ProgressBar
+                    android:id="@+id/progress_sim2"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:progressTint="#4CAF50"
+                    android:layout_width="match_parent"
+                    android:layout_height="8dp"
+                    android:layout_marginTop="12dp"
+                    android:max="100"/>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+    </LinearLayout>
+</ScrollView>

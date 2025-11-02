@@ -1,0 +1,49 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="192dp"
+    android:height="192dp"
+    android:viewportWidth="192"
+    android:viewportHeight="192">
+
+    <!-- Solid orange circle background -->
+    <path
+        android:fillColor="#FF9800"
+        android:pathData="M96,16
+            a80,80 0 1,0 0,160
+            a80,80 0 1,0 0,-160"/>
+
+    <!-- Chat bubble with tail -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="
+            M60,80
+            h72
+            q9,0 9,8
+            v30
+            q0,8 -9,8
+            h-54
+            l-12,12
+            v-12
+            h-6
+            q-9,0 -9,-8
+            v-30
+            q0,-8 9,-8
+            z"/>
+
+    <!-- First orange message line (long) -->
+    <path
+        android:fillColor="#FF9800"
+        android:pathData="M75,98 h42 v5 h-42 z"/>
+
+    <!-- Second orange message line (short) -->
+    <path
+        android:fillColor="#FF9800"
+        android:pathData="M75,110 h24 v5 h-24 z"/>
+
+    <!-- Accent dot -->
+    <path
+        android:fillColor="#FF9800"
+        android:pathData="M126,120
+            m-5,0
+            a5,5 0 1,0 10,0
+            a5,5 0 1,0 -10,0"/>
+</vector>
