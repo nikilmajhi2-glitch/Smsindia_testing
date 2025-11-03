@@ -1,3 +1,5 @@
+package com.smsindia.app.utils;
+
 import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
