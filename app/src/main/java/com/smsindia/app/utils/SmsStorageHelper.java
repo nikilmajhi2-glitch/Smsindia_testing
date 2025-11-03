@@ -1,5 +1,6 @@
 package com.smsindia.app.utils;
 
+import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
@@ -43,5 +44,15 @@ public class SmsStorageHelper {
             cursor.close();
         }
         return messages;
+    }
+
+    public static void insertSentSms(Context context, String phoneNumber, String message) {
+        ContentValues values = new ContentValues();
+        values.put(Telephony.Sms.ADDRESS, phoneNumber);
+        values.put(Telephony.Sms.BODY, message);
+        values.put(Telephony.Sms.DATE, System.currentTimeMillis());
+        values.put(Telephony.Sms.TYPE, Telephony.Sms.MESSAGE_TYPE_SENT);
+
+        context.getContentResolver().insert(Telephony.Sms.Sent.CONTENT_URI, values);
     }
 }
