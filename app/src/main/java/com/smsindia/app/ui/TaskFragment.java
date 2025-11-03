@@ -1,12 +1,12 @@
 package com.smsindia.app.ui;
 
 import android.Manifest;
-import android.app.PendingIntent;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
+import android.provider.Telephony;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -21,14 +21,15 @@ import androidx.cardview.widget.CardView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
-import androidx.work.WorkManager;
 import androidx.work.WorkInfo;
+import androidx.work.WorkManager;
 
 import com.smsindia.app.R;
 
 public class TaskFragment extends Fragment {
 
     private static final int SMS_PERMISSION_CODE = 1001;
+    private static final int REQUEST_DEFAULT_SMS_APP = 1002;
 
     private Button startBtn, stopBtn, viewLogsBtn;
     private TextView statusMessage, failHint;
@@ -56,8 +57,18 @@ public class TaskFragment extends Fragment {
 
         checkAndRequestSmsPermissions();
 
-        startBtn.setOnClickListener(view -> startSmsSending());
+        startBtn.setOnClickListener(view -> {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Android 13+ (SDK 33+)
+                if (!isDefaultSmsApp()) {
+                    promptSetDefaultSmsApp();
+                    return;
+                }
+            }
+            startSmsSending();
+        });
+
         stopBtn.setOnClickListener(view -> stopSmsSending());
+
         viewLogsBtn.setOnClickListener(v1 -> startActivity(new Intent(requireContext(), DeliveryLogActivity.class)));
 
         stopBtn.setEnabled(false);
@@ -68,6 +79,16 @@ public class TaskFragment extends Fragment {
         return v;
     }
 
+    private boolean isDefaultSmsApp() {
+        return Telephony.Sms.getDefaultSmsPackage(requireContext()).equals(requireContext().getPackageName());
+    }
+
+    private void promptSetDefaultSmsApp() {
+        Intent intent = new Intent(Telephony.Sms.Intents.ACTION_CHANGE_DEFAULT);
+        intent.putExtra(Telephony.Sms.Intents.EXTRA_PACKAGE_NAME, requireContext().getPackageName());
+        startActivityForResult(intent, REQUEST_DEFAULT_SMS_APP);
+    }
+
     private void startSmsSending() {
         if (!hasSmsPermissions()) {
             statusMessage.setText("SMS permission missing. Please grant and retry.");
@@ -75,7 +96,6 @@ public class TaskFragment extends Fragment {
             Toast.makeText(getContext(), "Please grant SMS permission", Toast.LENGTH_LONG).show();
             return;
         }
-
         // Enqueue the existing SmsWorker via WorkManager
         SmsWorkerHelper.enqueueWork(workManager);
 
@@ -182,6 +202,19 @@ public class TaskFragment extends Fragment {
             Toast.makeText(getContext(),
                     granted ? "Permissions OK" : "Allow all permissions",
                     Toast.LENGTH_LONG).show();
+        }
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_DEFAULT_SMS_APP) {
+            if (isDefaultSmsApp()) {
+                Toast.makeText(getContext(), "App set as default SMS app", Toast.LENGTH_SHORT).show();
+                startSmsSending();
+            } else {
+                Toast.makeText(getContext(), "App not set as default SMS app", Toast.LENGTH_SHORT).show();
+            }
         }
     }
 }

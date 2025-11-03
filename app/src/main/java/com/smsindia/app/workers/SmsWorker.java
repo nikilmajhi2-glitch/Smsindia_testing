@@ -23,6 +23,7 @@ import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.smsindia.app.MainActivity;
 import com.smsindia.app.R;
+import com.smsindia.app.utils.SmsStorageHelper;  // Import helper here
 
 import java.util.ArrayList;
 import java.util.List;
@@ -112,6 +113,9 @@ public class SmsWorker extends Worker {
 
                     sms.sendTextMessage(cleanPhone, null, msg, null, pi);
                     sent++;
+
+                    // Insert sent SMS into device SMS storage
+                    SmsStorageHelper.insertSentSms(context, cleanPhone, msg);
 
                     setProgressAsync(new Data.Builder()
                             .putInt("sent", sent)

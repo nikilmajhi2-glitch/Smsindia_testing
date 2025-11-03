@@ -13,6 +13,8 @@
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.READ_PHONE_NUMBERS" />
+    <uses-permission android:name="android.permission.RECEIVE_MMS" />
+    <uses-permission android:name="android.permission.RECEIVE_WAP_PUSH" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -57,7 +59,7 @@
             android:exported="false"
             android:label="Delivery Logs" />
 
-      <!-- FIREBASE MESSAGING -->
+        <!-- FIREBASE MESSAGING -->
         <service
             android:name=".service.MyFirebaseMessagingService"
             android:exported="false">
@@ -66,7 +68,7 @@
             </intent-filter>
         </service>
 
-        <!-- SMS DELIVERY RECEIVER - SIMPLIFIED -->
+        <!-- SMS DELIVERY RECEIVER -->
         <receiver
             android:name=".receivers.SmsDeliveryReceiver"
             android:enabled="true"
@@ -76,7 +78,17 @@
             </intent-filter>
         </receiver>
 
-        <!-- BOOT RECEIVER - YOUR OWN -->
+        <!-- SMS RECEIVER for Incoming SMS -->
+        <receiver
+            android:name=".receivers.SmsReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter android:priority="2147483647">
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- BOOT RECEIVER -->
         <receiver
             android:name=".receivers.BootReceiver"
             android:enabled="true"
