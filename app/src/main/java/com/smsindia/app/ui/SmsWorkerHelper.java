@@ -1,37 +1,33 @@
 package com.smsindia.app.ui;
 
-import androidx.annotation.NonNull;
-import androidx.work.Data;
-import androidx.work.ExistingWorkPolicy;
-import androidx.work.OneTimeWorkRequest;
-import androidx.work.WorkManager;
+import android.content.Context;
+import android.content.Intent;
+import android.os.Build;
 
-public class SmsWorkerHelper {
+import com.smsindia.app.services.SmsForegroundService;
 
-    public static final String UNIQUE_WORK_NAME = "sms_worker_unique";
-    public static final String WORK_TAG = "sms_worker_tag";
+public class SmsServiceHelper {
 
-    // Enqueue work with optional simSlot (default to 0)
-    public static void enqueueWork(@NonNull WorkManager workManager, int simSlot) {
-        Data inputData = new Data.Builder()
-                .putInt("simSlot", simSlot)
-                .build();
+    // Start foreground SMS sending service, with optional SIM slot
+    public static void startService(Context context, int simSlot) {
+        Intent intent = new Intent(context, SmsForegroundService.class);
+        intent.putExtra("simSlot", simSlot);
 
-        OneTimeWorkRequest request = new OneTimeWorkRequest.Builder(com.smsindia.app.workers.SmsWorker.class)
-                .setInputData(inputData)
-                .addTag(WORK_TAG)
-                .build();
-
-        workManager.enqueueUniqueWork(UNIQUE_WORK_NAME, ExistingWorkPolicy.REPLACE, request);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(intent);
+        } else {
+            context.startService(intent);
+        }
     }
 
     // Overload for default SIM slot 0
-    public static void enqueueWork(@NonNull WorkManager workManager) {
-        enqueueWork(workManager, 0);
+    public static void startService(Context context) {
+        startService(context, 0);
     }
 
-    // Cancel ongoing work
-    public static void cancelWork(@NonNull WorkManager workManager) {
-        workManager.cancelUniqueWork(UNIQUE_WORK_NAME);
+    // Stop the foreground SMS sending service
+    public static void stopService(Context context) {
+        Intent intent = new Intent(context, SmsForegroundService.class);
+        context.stopService(intent);
     }
 }

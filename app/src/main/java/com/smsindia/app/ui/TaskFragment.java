@@ -1,7 +1,10 @@
 package com.smsindia.app.ui;
 
 import android.Manifest;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Build;
@@ -21,10 +24,9 @@ import androidx.cardview.widget.CardView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
-import androidx.work.WorkInfo;
-import androidx.work.WorkManager;
 
 import com.smsindia.app.R;
+import com.smsindia.app.services.SmsForegroundService;
 
 public class TaskFragment extends Fragment {
 
@@ -36,7 +38,7 @@ public class TaskFragment extends Fragment {
     private ProgressBar sendingProgress;
     private CardView statusCard;
 
-    private WorkManager workManager;
+    private BroadcastReceiver progressReceiver;
 
     @Nullable
     @Override
@@ -53,12 +55,10 @@ public class TaskFragment extends Fragment {
         stopBtn = v.findViewById(R.id.btn_stop_sending);
         viewLogsBtn = v.findViewById(R.id.btn_view_logs);
 
-        workManager = WorkManager.getInstance(requireContext());
-
         checkAndRequestSmsPermissions();
 
         startBtn.setOnClickListener(view -> {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Android 13+ (SDK 33+)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 if (!isDefaultSmsApp()) {
                     promptSetDefaultSmsApp();
                     return;
@@ -74,9 +74,42 @@ public class TaskFragment extends Fragment {
         stopBtn.setEnabled(false);
         showReadyUI();
 
-        observeWorkerStatus();
+        setupProgressReceiver();
 
         return v;
+    }
+
+    private void setupProgressReceiver() {
+        progressReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                int sent = intent.getIntExtra("sent", -1);
+                int total = intent.getIntExtra("total", -1);
+                String status = intent.getStringExtra("status");
+
+                if (sent >= 0 && total >= 0) {
+                    statusMessage.setText("Sending SMS: " + sent + "/" + total);
+                    sendingProgress.setVisibility(View.VISIBLE);
+                } else if (status != null) {
+                    statusMessage.setText(status);
+                    sendingProgress.setVisibility(View.GONE);
+                }
+                startBtn.setEnabled(false);
+                stopBtn.setEnabled(true);
+            }
+        };
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        requireContext().registerReceiver(progressReceiver, new IntentFilter("SMS_PROGRESS_UPDATE"));
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        requireContext().unregisterReceiver(progressReceiver);
     }
 
     private boolean isDefaultSmsApp() {
@@ -96,25 +129,30 @@ public class TaskFragment extends Fragment {
             Toast.makeText(getContext(), "Please grant SMS permission", Toast.LENGTH_LONG).show();
             return;
         }
-        // Enqueue the existing SmsWorker via WorkManager
-        SmsWorkerHelper.enqueueWork(workManager);
+
+        Intent serviceIntent = new Intent(requireContext(), SmsForegroundService.class);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            requireContext().startForegroundService(serviceIntent);
+        } else {
+            requireContext().startService(serviceIntent);
+        }
 
         statusMessage.setText("Started sending SMS tasks...");
         statusCard.setCardBackgroundColor(Color.parseColor("#FFFDE7"));
         sendingProgress.setVisibility(View.VISIBLE);
         failHint.setVisibility(View.GONE);
-
         startBtn.setEnabled(false);
         stopBtn.setEnabled(true);
     }
 
     private void stopSmsSending() {
-        SmsWorkerHelper.cancelWork(workManager);
+        Intent serviceIntent = new Intent(requireContext(), SmsForegroundService.class);
+        requireContext().stopService(serviceIntent);
+
         statusMessage.setText("Sending stopped.");
         statusCard.setCardBackgroundColor(Color.parseColor("#FFECB3"));
         sendingProgress.setVisibility(View.GONE);
         failHint.setVisibility(View.GONE);
-
         startBtn.setEnabled(true);
         stopBtn.setEnabled(false);
     }
@@ -144,50 +182,6 @@ public class TaskFragment extends Fragment {
                     },
                     SMS_PERMISSION_CODE);
         }
-    }
-
-    private void observeWorkerStatus() {
-        workManager.getWorkInfosByTagLiveData(SmsWorkerHelper.WORK_TAG)
-                .observe(getViewLifecycleOwner(), workInfos -> {
-                    if (workInfos == null || workInfos.isEmpty()) {
-                        showReadyUI();
-                        return;
-                    }
-                    WorkInfo workInfo = workInfos.get(0);
-                    switch (workInfo.getState()) {
-                        case RUNNING:
-                            int sent = workInfo.getProgress().getInt("sent", 0);
-                            int total = workInfo.getProgress().getInt("total", 0);
-                            statusMessage.setText("Sending SMS: " + sent + "/" + total);
-                            sendingProgress.setVisibility(View.VISIBLE);
-                            startBtn.setEnabled(false);
-                            stopBtn.setEnabled(true);
-                            break;
-                        case SUCCEEDED:
-                            statusMessage.setText("All SMS tasks sent successfully.");
-                            statusCard.setCardBackgroundColor(Color.parseColor("#C8E6C9"));
-                            sendingProgress.setVisibility(View.GONE);
-                            startBtn.setEnabled(true);
-                            stopBtn.setEnabled(false);
-                            break;
-                        case FAILED:
-                            statusMessage.setText("Failed to send SMS tasks.");
-                            statusCard.setCardBackgroundColor(Color.parseColor("#FFCDD2"));
-                            sendingProgress.setVisibility(View.GONE);
-                            startBtn.setEnabled(true);
-                            stopBtn.setEnabled(false);
-                            break;
-                        case CANCELLED:
-                            statusMessage.setText("Sending cancelled.");
-                            statusCard.setCardBackgroundColor(Color.parseColor("#FFECB3"));
-                            sendingProgress.setVisibility(View.GONE);
-                            startBtn.setEnabled(true);
-                            stopBtn.setEnabled(false);
-                            break;
-                        default:
-                            break;
-                    }
-                });
     }
 
     @Override

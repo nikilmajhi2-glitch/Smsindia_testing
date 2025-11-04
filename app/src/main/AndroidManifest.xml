@@ -35,36 +35,34 @@
         android:theme="@style/Theme.SMSIndia.NoActionBar"
         tools:targetApi="35">
 
-        <!-- LOGIN ACTIVITY -->
+        <!-- ACTIVITIES -->
         <activity
             android:name=".LoginActivity"
             android:exported="false"
             android:launchMode="singleTop"
             android:theme="@style/Theme.SMSIndia.NoActionBar" />
 
-        <!-- MAIN ACTIVITY -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:theme="@style/Theme.SMSIndia.NoActionBar">
             <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
 
-        <!-- DELIVERY LOGS -->
         <activity
             android:name=".ui.DeliveryLogActivity"
             android:exported="false"
             android:label="Delivery Logs" />
 
-        <!-- FIREBASE MESSAGING -->
+        <!-- FIREBASE MESSAGING SERVICE -->
         <service
             android:name=".service.MyFirebaseMessagingService"
             android:exported="false">
             <intent-filter>
-                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+                <action android:name="com.google.firebase.MESSAGING_EVENT"/>
             </intent-filter>
         </service>
 
@@ -74,29 +72,34 @@
             android:enabled="true"
             android:exported="true">
             <intent-filter>
-                <action android:name="com.smsindia.SMS_DELIVERED" />
+                <action android:name="com.smsindia.SMS_DELIVERED"/>
             </intent-filter>
         </receiver>
 
-        <!-- SMS RECEIVER for Incoming SMS -->
+        <!-- Incoming SMS Receiver -->
         <receiver
             android:name=".receivers.SmsReceiver"
             android:enabled="true"
             android:exported="true">
             <intent-filter android:priority="2147483647">
-                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+                <action android:name="android.provider.Telephony.SMS_RECEIVED"/>
             </intent-filter>
         </receiver>
 
-        <!-- BOOT RECEIVER -->
+        <!-- BOOT COMPLETED Receiver -->
         <receiver
             android:name=".receivers.BootReceiver"
             android:enabled="true"
             android:exported="true">
             <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
             </intent-filter>
         </receiver>
+
+        <!-- SMS Foreground Service -->
+        <service
+            android:name=".services.SmsForegroundService"
+            android:exported="false" />
 
     </application>
 </manifest>
