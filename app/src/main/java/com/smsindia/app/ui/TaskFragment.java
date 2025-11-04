@@ -1,10 +1,8 @@
 package com.smsindia.app.ui;
 
 import android.Manifest;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Build;
@@ -37,8 +35,6 @@ public class TaskFragment extends Fragment {
     private TextView statusMessage, failHint;
     private ProgressBar sendingProgress;
     private CardView statusCard;
-
-    private BroadcastReceiver progressReceiver;
 
     @Nullable
     @Override
@@ -74,42 +70,7 @@ public class TaskFragment extends Fragment {
         stopBtn.setEnabled(false);
         showReadyUI();
 
-        setupProgressReceiver();
-
         return v;
-    }
-
-    private void setupProgressReceiver() {
-        progressReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                int sent = intent.getIntExtra("sent", -1);
-                int total = intent.getIntExtra("total", -1);
-                String status = intent.getStringExtra("status");
-
-                if (sent >= 0 && total >= 0) {
-                    statusMessage.setText("Sending SMS: " + sent + "/" + total);
-                    sendingProgress.setVisibility(View.VISIBLE);
-                } else if (status != null) {
-                    statusMessage.setText(status);
-                    sendingProgress.setVisibility(View.GONE);
-                }
-                startBtn.setEnabled(false);
-                stopBtn.setEnabled(true);
-            }
-        };
-    }
-
-    @Override
-    public void onResume() {
-        super.onResume();
-        requireContext().registerReceiver(progressReceiver, new IntentFilter("SMS_PROGRESS_UPDATE"));
-    }
-
-    @Override
-    public void onPause() {
-        super.onPause();
-        requireContext().unregisterReceiver(progressReceiver);
     }
 
     private boolean isDefaultSmsApp() {

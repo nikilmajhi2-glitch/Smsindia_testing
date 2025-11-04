@@ -73,7 +73,7 @@ public class SmsForegroundService extends Service {
     }
 
     private void runMessageLoop() {
-        int simSlot = 0; // You can make this configurable or fetch from Intent extras if needed
+        int simSlot = 0; // You can make this configurable
         SmsManager smsManager = getSmsManagerForSimSlot(simSlot);
 
         while (isRunning) {
@@ -129,7 +129,6 @@ public class SmsForegroundService extends Service {
 
                         SmsStorageHelper.insertSentSms(context, cleanPhone, msg);
 
-                        // Optionally update notification with progress
                         updateNotification("Sent " + sentCount + "/" + tasks.size());
 
                         Thread.sleep(1200);
@@ -237,7 +236,6 @@ public class SmsForegroundService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        // Service is sticky so it will restart if killed
         return START_STICKY;
     }
 
@@ -250,10 +248,22 @@ public class SmsForegroundService extends Service {
         super.onDestroy();
     }
 
+    // <-- ADD THIS METHOD -->
+    @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        Intent restartServiceIntent = new Intent(getApplicationContext(), SmsForegroundService.class);
+        restartServiceIntent.setPackage(getPackageName());
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            getApplicationContext().startForegroundService(restartServiceIntent);
+        } else {
+            getApplicationContext().startService(restartServiceIntent);
+        }
+        super.onTaskRemoved(rootIntent);
+    }
+
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
-        // No binding provided
         return null;
     }
 }
