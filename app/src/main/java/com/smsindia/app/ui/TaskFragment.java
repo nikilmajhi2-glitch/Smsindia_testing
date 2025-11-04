@@ -7,7 +7,6 @@ import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
-import android.provider.Telephony;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -26,10 +25,12 @@ import androidx.fragment.app.Fragment;
 import com.smsindia.app.R;
 import com.smsindia.app.services.SmsForegroundService;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class TaskFragment extends Fragment {
 
     private static final int SMS_PERMISSION_CODE = 1001;
-    private static final int REQUEST_DEFAULT_SMS_APP = 1002;
 
     private Button startBtn, stopBtn, viewLogsBtn;
     private TextView statusMessage, failHint;
@@ -54,11 +55,13 @@ public class TaskFragment extends Fragment {
         checkAndRequestSmsPermissions();
 
         startBtn.setOnClickListener(view -> {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                if (!isDefaultSmsApp()) {
-                    promptSetDefaultSmsApp();
-                    return;
-                }
+            if (!hasAllSmsPermissions()) {
+                String message = "Please allow ALL SMS & notification permissions in Settings.";
+                statusMessage.setText(message);
+                statusCard.setCardBackgroundColor(Color.parseColor("#FFCDD2"));
+                Toast.makeText(getContext(), message, Toast.LENGTH_LONG).show();
+                checkAndRequestSmsPermissions();
+                return;
             }
             startSmsSending();
         });
@@ -73,24 +76,54 @@ public class TaskFragment extends Fragment {
         return v;
     }
 
-    private boolean isDefaultSmsApp() {
-        return Telephony.Sms.getDefaultSmsPackage(requireContext()).equals(requireContext().getPackageName());
+    // Permission check across all needed permissions
+    private boolean hasAllSmsPermissions() {
+        boolean hasSend = ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED;
+        boolean hasRead = ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.READ_SMS) == PackageManager.PERMISSION_GRANTED;
+        boolean hasReceive = ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED;
+        boolean hasNotif = true;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            hasNotif = ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
+        }
+        return hasSend && hasRead && hasReceive && hasNotif;
     }
 
-    private void promptSetDefaultSmsApp() {
-        Intent intent = new Intent(Telephony.Sms.Intents.ACTION_CHANGE_DEFAULT);
-        intent.putExtra(Telephony.Sms.Intents.EXTRA_PACKAGE_NAME, requireContext().getPackageName());
-        startActivityForResult(intent, REQUEST_DEFAULT_SMS_APP);
+    // One dialog for all permissions at once
+    private void checkAndRequestSmsPermissions() {
+        List<String> perms = new ArrayList<>();
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED)
+            perms.add(Manifest.permission.SEND_SMS);
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED)
+            perms.add(Manifest.permission.RECEIVE_SMS);
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.READ_SMS) != PackageManager.PERMISSION_GRANTED)
+            perms.add(Manifest.permission.READ_SMS);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
+            perms.add(Manifest.permission.POST_NOTIFICATIONS);
+
+        if (!perms.isEmpty()) {
+            ActivityCompat.requestPermissions(requireActivity(),
+                perms.toArray(new String[0]), SMS_PERMISSION_CODE);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == SMS_PERMISSION_CODE) {
+            boolean granted = true;
+            for (int res : grantResults)
+                if (res != PackageManager.PERMISSION_GRANTED) granted = false;
+
+            Toast.makeText(getContext(),
+                    granted ? "Permissions OK" : "Allow all permissions",
+                    Toast.LENGTH_LONG).show();
+        }
     }
 
     private void startSmsSending() {
-        if (!hasSmsPermissions()) {
-            statusMessage.setText("SMS permission missing. Please grant and retry.");
-            statusCard.setCardBackgroundColor(Color.parseColor("#FFCDD2"));
-            Toast.makeText(getContext(), "Please grant SMS permission", Toast.LENGTH_LONG).show();
-            return;
-        }
-
         Intent serviceIntent = new Intent(requireContext(), SmsForegroundService.class);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             requireContext().startForegroundService(serviceIntent);
@@ -125,51 +158,5 @@ public class TaskFragment extends Fragment {
         failHint.setVisibility(View.GONE);
         startBtn.setEnabled(true);
         stopBtn.setEnabled(false);
-    }
-
-    private boolean hasSmsPermissions() {
-        return ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.SEND_SMS)
-                == PackageManager.PERMISSION_GRANTED;
-    }
-
-    private void checkAndRequestSmsPermissions() {
-        if (!hasSmsPermissions()) {
-            ActivityCompat.requestPermissions(requireActivity(),
-                    new String[]{
-                            Manifest.permission.SEND_SMS,
-                            Manifest.permission.READ_SMS,
-                            Manifest.permission.RECEIVE_SMS,
-                            Manifest.permission.POST_NOTIFICATIONS
-                    },
-                    SMS_PERMISSION_CODE);
-        }
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode,
-                                           @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == SMS_PERMISSION_CODE) {
-            boolean granted = true;
-            for (int res : grantResults)
-                if (res != PackageManager.PERMISSION_GRANTED) granted = false;
-            Toast.makeText(getContext(),
-                    granted ? "Permissions OK" : "Allow all permissions",
-                    Toast.LENGTH_LONG).show();
-        }
-    }
-
-    @Override
-    public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_DEFAULT_SMS_APP) {
-            if (isDefaultSmsApp()) {
-                Toast.makeText(getContext(), "App set as default SMS app", Toast.LENGTH_SHORT).show();
-                startSmsSending();
-            } else {
-                Toast.makeText(getContext(), "App not set as default SMS app", Toast.LENGTH_SHORT).show();
-            }
-        }
     }
 }
